@@ -1,0 +1,12 @@
+**/__pycache__/**
+**/*.pyc
+**/*.pyo
+tests/
+docs/
+scripts/
+.github/
+.gitignore
+.npmignore
+AGENTS.md
+install.sh
+pyproject.toml

@@ -1,0 +1,27 @@
+{
+  "name": "codex-native-scheduler",
+  "version": "0.1.0",
+  "description": "Schedule unattended Codex CLI jobs with native OS schedulers.",
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/wufei-png/codex-native-scheduler.git"
+  },
+  "bin": {
+    "codex-native-scheduler": "bin/codex-native-scheduler.js",
+    "codex-schedule": "bin/codex-native-scheduler.js"
+  },
+  "files": [
+    "bin/",
+    "skills/codex-native-scheduler/SKILL.md",
+    "skills/codex-native-scheduler/agents/",
+    "skills/codex-native-scheduler/references/",
+    "skills/codex-native-scheduler/scripts/codex-schedule",
+    "skills/codex-native-scheduler/scripts/codex_scheduler/**/*.py",
+    "LICENSE",
+    "README.md"
+  ],
+  "engines": {
+    "node": ">=18"
+  }
+}
