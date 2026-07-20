@@ -56,6 +56,27 @@ curl -fsSL https://raw.githubusercontent.com/wufei-png/codex-native-scheduler/ma
 only installs code. `init` creates private scheduler state under
 `$CODEX_HOME/codex-native-scheduler`.
 
+## State directory
+
+The default state root is `$CODEX_HOME/codex-native-scheduler`, normally
+`~/.codex/codex-native-scheduler`. `--state-dir` is a global override intended
+for isolated tests, CI, and live canaries; place it before the subcommand:
+
+```console
+codex-schedule \
+  --state-dir /tmp/scheduler-canary/codex-native-scheduler \
+  init
+```
+
+`CODEX_SCHEDULER_STATE_DIR` provides the same override through the environment.
+Native jobs retain the absolute state path used when they are registered, so
+use the same path for later inspection and management.
+
+For deletion safety, `purge --yes` accepts an overridden root only when its
+final path component is exactly `codex-native-scheduler`. Keep that suffix for
+temporary roots; arbitrary directory names can be used for non-destructive
+commands but cannot be purged by the CLI.
+
 ## Quick start
 
 Create a one-shot job:

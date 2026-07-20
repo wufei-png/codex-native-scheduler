@@ -65,31 +65,38 @@ Worktree mode requires Git; direct mode can run outside Git.
 ## Runs, retry, and retention
 
 Every run has immutable snapshots of its job and prompt plus `run.json`, raw
-Codex JSONL, stderr, final reply, and attempt records. Manual retry creates a new
-run linked by `retry_of` and resumes the captured session when its workspace is
-still available. If a `new_each_run` session is unavailable, retry starts a new
-session. A missing fixed session fails and requires an explicit session reset.
+Codex JSONL, stderr, attempt records, and a final reply when Codex produces
+one. Manual retry creates a new run linked by `retry_of` and resumes the
+captured session when its workspace is still available. If a `new_each_run`
+session is unavailable, retry starts a new session. A missing fixed session
+fails and requires an explicit session reset.
 
 Retention defaults to forever. Bounded retention can use days, retained run
-count, or both. `prune --dry-run` previews candidates. Pruning removes detailed
-artifacts while retaining a tombstone with run identity, status, timestamps,
-job revision, and retry link.
+count, or both and is applied automatically after terminal runs.
+`prune --dry-run` previews the same candidates used by automatic cleanup.
+Pruning removes detailed artifacts while retaining a tombstone with run
+identity, status, timestamps, job revision, and retry link.
 
-`pause` affects future wakes and lets the active run finish. `stop` terminates
-an active Codex process. `cancel` applies to a pending one-shot. `delete` is
-permanent, requires confirmation, and refuses active runs unless `--stop` is
-given. Delete and purge refuse worktrees with uncommitted changes or commits
-not merged into the configured source ref. `decommission` unregisters all
-native jobs while preserving state; `purge --yes` is only allowed after
-decommissioning.
+`pause` and `resume` apply only to active and paused recurring jobs,
+respectively. Pausing affects future wakes and lets the active run finish.
+`stop` terminates an active Codex process. `cancel` applies to a pending
+one-shot. `delete` is permanent, requires confirmation, and refuses active
+runs unless `--stop` is given. Delete and purge refuse worktrees with
+uncommitted changes or commits not merged into the configured source ref.
+`decommission` unregisters all native jobs while preserving state;
+`purge --yes` is only allowed after decommissioning.
 
 ## State and security
 
-State lives at `$CODEX_HOME/codex-native-scheduler` (or the documented state
-override), separate from the earlier `scheduled-codex` prototype. Directories
-and files are private on POSIX; Windows uses best-effort user-local protection.
-Values captured from the environment are redacted from ordinary job output but
-are not encrypted on disk.
+State lives at `$CODEX_HOME/codex-native-scheduler`, separate from the earlier
+`scheduled-codex` prototype. `--state-dir` and
+`CODEX_SCHEDULER_STATE_DIR` provide an override for isolated tests, CI, and
+canaries. Native registrations retain that absolute path. For deletion safety,
+`purge --yes` requires the selected root's final path component to be exactly
+`codex-native-scheduler`; other overridden roots remain usable for
+non-destructive commands. Directories and files are private on POSIX; Windows
+uses best-effort user-local protection. Values captured from the environment
+are redacted from ordinary job output but are not encrypted on disk.
 
 The base Codex configuration and selected profile are read by Codex at every
 run. Explicit job `-c` overrides are frozen in the job revision. The scheduler
