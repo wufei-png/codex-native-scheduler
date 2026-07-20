@@ -41,9 +41,11 @@ class BackendTests(unittest.TestCase):
                 return completed(arguments)
 
             backend = LaunchdBackend(state_root=root / "state", execute=execute)
+            launchctl = root / "launchctl"
+            launchctl.write_text("fixture")
             with mock.patch(
                 "codex_scheduler.backends.launchd.shutil.which",
-                return_value="/bin/launchctl",
+                return_value=str(launchctl),
             ):
                 backend.register(metadata)
             path = backend.plist_path(metadata)
