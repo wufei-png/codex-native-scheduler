@@ -54,9 +54,11 @@ class SystemdBackend(Backend):
             ]
         if schedule["kind"] == "every":
             seconds = int(schedule["seconds"])
+            anchor = parse_iso(schedule["anchor"]).astimezone()
             return [
-                f"--on-active={seconds}s",
+                f"--on-calendar={anchor.strftime('%Y-%m-%d %H:%M:%S')}",
                 f"--on-unit-active={seconds}s",
+                "--timer-property=Persistent=true",
             ]
         raise BackendError(f"unsupported systemd schedule: {schedule['kind']}")
 

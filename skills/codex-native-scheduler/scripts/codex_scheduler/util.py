@@ -315,28 +315,7 @@ def process_start_token(pid: int) -> str | None:
 def process_alive(pid: int | None, start_token: str | None = None) -> bool:
     if not pid or pid <= 0:
         return False
-    try:
-        if os.name == "nt":
-            os.kill(pid, 0)
-        else:
-            os.kill(pid, 0)
-    except (OSError, ProcessLookupError):
-        return False
-    if sys.platform.startswith("linux"):
-        try:
-            raw = Path(f"/proc/{pid}/stat").read_text(encoding="utf-8")
-            if raw.rsplit(") ", 1)[1].split()[0] == "Z":
-                return False
-        except (OSError, IndexError):
-            return False
-    elif sys.platform == "darwin":
-        state = run_checked(
-            ["/bin/ps", "-o", "stat=", "-p", str(pid)],
-            timeout=5,
-        )
-        if state.returncode != 0 or state.stdout.lstrip().startswith("Z"):
-            return False
-    elif os.name == "nt":
+    if os.name == "nt":
         try:
             import ctypes
 
@@ -355,6 +334,25 @@ def process_alive(pid: int | None, start_token: str | None = None) -> bool:
             finally:
                 ctypes.windll.kernel32.CloseHandle(process)
         except (AttributeError, OSError):
+            return False
+    else:
+        try:
+            os.kill(pid, 0)
+        except (OSError, ProcessLookupError):
+            return False
+    if sys.platform.startswith("linux"):
+        try:
+            raw = Path(f"/proc/{pid}/stat").read_text(encoding="utf-8")
+            if raw.rsplit(") ", 1)[1].split()[0] == "Z":
+                return False
+        except (OSError, IndexError):
+            return False
+    elif sys.platform == "darwin":
+        state = run_checked(
+            ["/bin/ps", "-o", "stat=", "-p", str(pid)],
+            timeout=5,
+        )
+        if state.returncode != 0 or state.stdout.lstrip().startswith("Z"):
             return False
     if start_token is None:
         return True
