@@ -151,6 +151,7 @@ def create_job(
         "cwd": str(cwd),
         "workspace": workspace,
         "session_mode": session_mode,
+        "session_generation": 1,
         "fixed_session_id": None,
         "overlap_policy": overlap_policy,
         "codex": {
@@ -206,10 +207,11 @@ def update_job(
         )
     for key, value in changes.items():
         job[key] = value
-    if (
+    session_mode_changed = bool(
         changes.get("session_mode")
         and changes["session_mode"] != previous["session_mode"]
-    ):
+    )
+    if session_mode_changed:
         job["fixed_session_id"] = None
     if job["session_mode"] == "resume_fixed" and job["overlap_policy"] == "parallel":
         raise SchedulerError("resume_fixed requires overlap_policy=skip")
@@ -217,8 +219,12 @@ def update_job(
         job["limits"].get(key) is not None for key in ("count", "until")
     ):
         raise SchedulerError("one-shot jobs cannot have --count or --until")
-    if reset_session:
+    if reset_session or session_mode_changed:
         job["fixed_session_id"] = None
+        job["session_generation"] = int(
+            previous.get("session_generation", 1)
+        ) + 1
+    if reset_session:
         workspace = job.get("workspace", {})
         if workspace.get("mode") == "worktree":
             workspace["generation"] = int(workspace.get("generation", 1)) + 1
@@ -260,12 +266,12 @@ def set_job_status(
 
 
 def resume_job(store: Store, job: dict[str, Any]) -> dict[str, Any]:
-    if job["schedule"]["kind"] == "at" and job["status"] in {
-        "completed",
-        "failed",
-        "cancelled",
-    }:
-        raise SchedulerError("a terminal one-shot cannot be resumed")
+    if job["schedule"]["kind"] == "at":
+        raise SchedulerError("one-shot jobs cannot be resumed")
+    if job["status"] != "paused":
+        raise SchedulerError(
+            f"only a paused recurring job can be resumed: {job['status']}"
+        )
     previous = job["status"]
     job["status"] = "active"
     job["updated_at"] = iso()

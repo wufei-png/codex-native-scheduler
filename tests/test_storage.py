@@ -5,9 +5,10 @@ import tempfile
 import unittest
 from concurrent.futures import ThreadPoolExecutor
 from pathlib import Path
+from unittest import mock
 
 from codex_scheduler.errors import SchedulerError
-from codex_scheduler.util import atomic_write_text, iso
+from codex_scheduler.util import atomic_write_text, captured_environment, iso
 
 from tests.support import job, store_with_job
 
@@ -110,6 +111,21 @@ class StorageTests(unittest.TestCase):
                 results = list(executor.map(acquire, (1, 2)))
             self.assertEqual(results.count(True), 1)
             self.assertEqual(results.count(False), 1)
+
+    def test_windows_runtime_environment_keys_are_preserved_when_present(self) -> None:
+        expected = {
+            "USERPROFILE": r"C:\Users\tester",
+            "APPDATA": r"C:\Users\tester\AppData\Roaming",
+            "LOCALAPPDATA": r"C:\Users\tester\AppData\Local",
+            "SystemRoot": r"C:\Windows",
+            "COMSPEC": r"C:\Windows\System32\cmd.exe",
+            "PATHEXT": ".COM;.EXE;.BAT;.CMD",
+        }
+        with mock.patch.dict("os.environ", expected, clear=False):
+            captured, missing = captured_environment([], [])
+        self.assertFalse(missing)
+        for key, value in expected.items():
+            self.assertEqual(captured[key], value)
 
 
 if __name__ == "__main__":

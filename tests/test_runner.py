@@ -9,6 +9,8 @@ import unittest
 from pathlib import Path
 from unittest import mock
 
+from codex_scheduler.errors import SchedulerError
+from codex_scheduler.jobs import resume_job
 from codex_scheduler.runner import (
     _run_with_overlap,
     execute_run,
@@ -152,6 +154,50 @@ class RunnerTests(unittest.TestCase):
             )["arguments"]
             self.assertIn("resume", command)
             self.assertIn("session-test", command)
+            self.assertLess(command.index("-p"), command.index("resume"))
+            self.assertLess(command.index("-C"), command.index("resume"))
+            self.assertEqual(command[command.index("-C") + 1], str(root))
+
+    def test_real_unknown_configuration_error_is_not_retried(self) -> None:
+        with tempfile.TemporaryDirectory() as temporary:
+            root = Path(temporary)
+            counter = root / "counter"
+            metadata, store, run, run_dir = self.prepare(
+                root,
+                mode="unknown_configuration",
+                counter=counter,
+            )
+            result = execute_run(
+                store,
+                run,
+                run_dir,
+                metadata,
+                resume_session=None,
+            )
+            self.assertEqual(result["status"], "failed")
+            self.assertEqual(result["attempts"], 1)
+            self.assertEqual(counter.read_text(), "1")
+
+    def test_failed_latest_attempt_removes_stale_final_reply(self) -> None:
+        with tempfile.TemporaryDirectory() as temporary:
+            root = Path(temporary)
+            counter = root / "counter"
+            metadata, store, run, run_dir = self.prepare(
+                root,
+                mode="stale_final",
+                counter=counter,
+            )
+            with mock.patch("codex_scheduler.runner.time.sleep"):
+                result = execute_run(
+                    store,
+                    run,
+                    run_dir,
+                    metadata,
+                    resume_session=None,
+                )
+            self.assertEqual(result["status"], "failed")
+            self.assertEqual(result["attempts"], 2)
+            self.assertFalse((run_dir / "final.txt").exists())
 
     def test_workspace_preparation_error_becomes_failed_run(self) -> None:
         with tempfile.TemporaryDirectory() as temporary:
@@ -208,6 +254,67 @@ class RunnerTests(unittest.TestCase):
             self.assertEqual(current["status"], "completed")
             backend.return_value.unregister.assert_called_once()
 
+    def test_parallel_scheduled_run_stops_if_job_was_cancelled(self) -> None:
+        with tempfile.TemporaryDirectory() as temporary:
+            root = Path(temporary)
+            metadata, store, _run, _run_dir = self.prepare(
+                root,
+                mode="success",
+            )
+            metadata["overlap_policy"] = "parallel"
+            metadata["status"] = "cancelled"
+            store.save_job(metadata)
+            run, run_dir = store.new_run(
+                metadata,
+                trigger="scheduled",
+                scheduled_for="2026-07-20T10:00:00+00:00",
+                occurrence_key="2026-07-20T10:00Z",
+            )
+            result = _run_with_overlap(
+                store,
+                metadata,
+                run,
+                run_dir,
+                scheduled=True,
+                resume_session=None,
+            )
+            self.assertEqual(result["status"], "cancelled")
+            self.assertEqual(
+                store.load_job(metadata["id"])["stats"]["scheduled_started"],
+                0,
+            )
+
+    def test_parallel_scheduled_run_cannot_overshoot_count(self) -> None:
+        with tempfile.TemporaryDirectory() as temporary:
+            root = Path(temporary)
+            metadata, store, _run, _run_dir = self.prepare(
+                root,
+                mode="success",
+            )
+            metadata["overlap_policy"] = "parallel"
+            metadata["limits"]["count"] = 1
+            metadata["stats"]["scheduled_started"] = 1
+            store.save_job(metadata)
+            run, run_dir = store.new_run(
+                metadata,
+                trigger="scheduled",
+                scheduled_for="2026-07-20T11:00:00+00:00",
+                occurrence_key="2026-07-20T11:00Z",
+            )
+            result = _run_with_overlap(
+                store,
+                metadata,
+                run,
+                run_dir,
+                scheduled=True,
+                resume_session=None,
+            )
+            self.assertEqual(result["status"], "cancelled")
+            self.assertEqual(
+                store.load_job(metadata["id"])["stats"]["scheduled_started"],
+                1,
+            )
+
     def test_stale_parallel_run_is_marked_abandoned(self) -> None:
         with tempfile.TemporaryDirectory() as temporary:
             root = Path(temporary)
@@ -255,6 +362,79 @@ class RunnerTests(unittest.TestCase):
             after_success = store.load_job(metadata["id"])
             self.assertEqual(after_success["stats"]["consecutive_failures"], 0)
             self.assertEqual(after_success["status"], "paused")
+
+    def test_completed_recurring_job_cannot_be_resumed(self) -> None:
+        with tempfile.TemporaryDirectory() as temporary:
+            root = Path(temporary)
+            metadata, store, _run, _run_dir = self.prepare(
+                root,
+                mode="success",
+            )
+            metadata["status"] = "completed"
+            store.save_job(metadata)
+            with self.assertRaises(SchedulerError):
+                resume_job(store, metadata)
+
+    def test_reset_session_rejects_late_session_from_old_generation(self) -> None:
+        with tempfile.TemporaryDirectory() as temporary:
+            root = Path(temporary)
+            metadata, store, _run, _run_dir = self.prepare(
+                root,
+                mode="success",
+                session_mode="resume_fixed",
+            )
+            old_snapshot = dict(metadata)
+            current = store.load_job(metadata["id"])
+            current["session_generation"] = 2
+            current["fixed_session_id"] = None
+            store.save_job(current)
+            run, run_dir = store.new_run(
+                old_snapshot,
+                trigger="run_now",
+                scheduled_for=None,
+                occurrence_key=None,
+                job_snapshot=old_snapshot,
+            )
+            result = _run_with_overlap(
+                store,
+                old_snapshot,
+                run,
+                run_dir,
+                scheduled=False,
+                resume_session=None,
+            )
+            self.assertEqual(result["status"], "succeeded")
+            self.assertIsNone(
+                store.load_job(metadata["id"])["fixed_session_id"]
+            )
+
+    def test_bounded_retention_is_applied_after_each_run(self) -> None:
+        with tempfile.TemporaryDirectory() as temporary:
+            root = Path(temporary)
+            environment = {
+                "HOME": str(root),
+                "PATH": os.environ.get("PATH", ""),
+                "PYTHONUNBUFFERED": "1",
+                "FAKE_CODEX_MODE": "success",
+            }
+            metadata = job(
+                root,
+                command=[sys.executable, str(FIXTURE)],
+                environment=environment,
+            )
+            metadata["retention"] = {
+                "mode": "bounded",
+                "days": None,
+                "retain_runs": 1,
+            }
+            store = store_with_job(root, metadata)
+            first = run_now(store, metadata["id"])
+            second = run_now(store, metadata["id"])
+            runs = {
+                run["id"]: run for run in store.list_runs(metadata["id"])
+            }
+            self.assertTrue(runs[first["id"]]["tombstone"])
+            self.assertFalse(runs[second["id"]].get("tombstone", False))
 
     def test_stop_terminates_active_codex_run(self) -> None:
         with tempfile.TemporaryDirectory() as temporary:

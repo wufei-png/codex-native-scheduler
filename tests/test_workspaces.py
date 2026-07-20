@@ -85,6 +85,29 @@ class WorkspaceTests(unittest.TestCase):
             )
             self.assertTrue(record["branch"].startswith("codex-schedule/"))
 
+    def test_explicit_base_ref_overrides_current_branch(self) -> None:
+        with tempfile.TemporaryDirectory() as temporary:
+            root = Path(temporary)
+            repository = self.make_repository(root)
+            git(repository, "switch", "-q", "-c", "alternate")
+            (repository / "file.txt").write_text("alternate\n")
+            git(repository, "add", "file.txt")
+            git(repository, "commit", "-m", "alternate")
+            alternate_commit = git(repository, "rev-parse", "HEAD")
+            git(repository, "switch", "-q", "main")
+            metadata = job(repository)
+            metadata["workspace"] = worktree_settings(
+                repository,
+                base_policy="latest",
+                base_ref="alternate",
+            )
+            _cwd, record = prepare_workspace(
+                metadata,
+                "run-explicit-ref",
+                state_root=root / "state",
+            )
+            self.assertEqual(record["base_commit"], alternate_commit)
+
     def test_non_git_worktree_is_rejected(self) -> None:
         with tempfile.TemporaryDirectory() as temporary:
             with self.assertRaises(SchedulerError):

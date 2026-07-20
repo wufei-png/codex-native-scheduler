@@ -41,6 +41,7 @@ DETERMINISTIC_ERRORS = (
     "configuration error",
     "config.toml",
     "unknown field",
+    "unknown configuration field",
     "unexpected argument",
     "invalid value",
     "invalid profile",
@@ -63,17 +64,18 @@ def _codex_arguments(
     session_id: str | None,
 ) -> list[str]:
     arguments = [*job["codex"]["command"], "exec"]
-    common = ["--strict-config", "--json", "-o", str(final_path)]
+    outer = ["-C", str(cwd)]
     profile = job["codex"].get("profile")
     if profile:
-        common.extend(["-p", str(profile)])
+        outer.extend(["-p", str(profile)])
+    common = ["--strict-config", "--json", "-o", str(final_path)]
     for override in job["codex"].get("config", []):
         common.extend(["-c", str(override)])
     if not job["workspace"].get("is_git", True):
         common.append("--skip-git-repo-check")
     if session_id:
-        return [*arguments, "resume", *common, session_id, "-"]
-    return [*arguments, *common, "-C", str(cwd), "-"]
+        return [*arguments, *outer, "resume", *common, session_id, "-"]
+    return [*arguments, *outer, *common, "-"]
 
 
 def _events(path: Path) -> dict[str, Any]:
@@ -119,8 +121,11 @@ def _copy_attempt_artifacts(attempt_dir: Path, run_dir: Path) -> None:
     }
     for source_name, target_name in mapping.items():
         source = attempt_dir / source_name
+        target = run_dir / target_name
         if source.exists():
-            shutil.copy2(source, run_dir / target_name)
+            shutil.copy2(source, target)
+        else:
+            target.unlink(missing_ok=True)
 
 
 def _mark_cancel_requested(run_dir: Path) -> bool:
@@ -372,6 +377,8 @@ def _finish_job_state(
             terminal = True
         job["updated_at"] = iso()
         store.save_job(job)
+        for candidate in store.retention_candidates(job):
+            store.prune_run(candidate)
     if terminal:
         backend_for(job["backend"], state_root=store.root).unregister(job)
     return job
@@ -397,15 +404,6 @@ def _run_with_overlap(
         )
         if acquired:
             _abandon_owner(store, job["id"], previous)
-            if scheduled and store.load_job(job["id"])["status"] != "active":
-                run["status"] = "cancelled"
-                run["finished_at"] = iso()
-                run["error"] = (
-                    "job became inactive during stale-run reconciliation"
-                )
-                store.save_run(run)
-                store.release_active(job["id"], run["id"])
-                return run
     if not acquired:
         run["status"] = "skipped_overlap"
         run["finished_at"] = iso()
@@ -422,6 +420,21 @@ def _run_with_overlap(
         if scheduled:
             with store.short_lock(job["id"]):
                 current = store.load_job(job["id"])
+                if current["status"] != "active":
+                    run["status"] = "cancelled"
+                    run["finished_at"] = iso()
+                    run["error"] = "job became inactive before the run started"
+                    store.save_run(run)
+                    return run
+                count = current["limits"].get("count")
+                if count and int(
+                    current["stats"].get("scheduled_started", 0)
+                ) >= int(count):
+                    run["status"] = "cancelled"
+                    run["finished_at"] = iso()
+                    run["error"] = "schedule count was reached before the run started"
+                    store.save_run(run)
+                    return run
                 current["stats"]["scheduled_started"] = (
                     int(current["stats"].get("scheduled_started", 0)) + 1
                 )
@@ -450,7 +463,14 @@ def _run_with_overlap(
         ):
             with store.short_lock(job["id"]):
                 current = store.load_job(job["id"])
-                if not current.get("fixed_session_id"):
+                same_generation = int(
+                    current.get("session_generation", 1)
+                ) == int(job.get("session_generation", 1))
+                if (
+                    current.get("session_mode") == "resume_fixed"
+                    and same_generation
+                    and not current.get("fixed_session_id")
+                ):
                     current["fixed_session_id"] = completed["session_id"]
                     current["updated_at"] = iso()
                     store.save_job(current)

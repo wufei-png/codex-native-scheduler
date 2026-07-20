@@ -219,6 +219,13 @@ def captured_environment(
         "TMPDIR",
         "TEMP",
         "TMP",
+        "USERPROFILE",
+        "APPDATA",
+        "LOCALAPPDATA",
+        "SystemRoot",
+        "WINDIR",
+        "COMSPEC",
+        "PATHEXT",
     ]
     for key in [*baseline, *requested]:
         if key in os.environ:

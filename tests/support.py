@@ -51,6 +51,7 @@ def job(
             "is_git": False,
         },
         "session_mode": session_mode,
+        "session_generation": 1,
         "fixed_session_id": None,
         "overlap_policy": overlap,
         "codex": {

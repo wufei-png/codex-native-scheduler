@@ -499,10 +499,14 @@ def _prune(store: Store, reference: str | None, dry_run: bool) -> dict[str, Any]
     )
     candidates = []
     for job in jobs:
-        for run in store.retention_candidates(job):
-            candidates.append({"job_id": job["id"], "run_id": run["id"]})
-            if not dry_run:
-                store.prune_run(run)
+        with store.short_lock(job["id"]):
+            current = store.load_job(job["id"])
+            for run in store.retention_candidates(current):
+                candidates.append(
+                    {"job_id": current["id"], "run_id": run["id"]}
+                )
+                if not dry_run:
+                    store.prune_run(run)
     return {"dry_run": dry_run, "runs": candidates}
 
 
@@ -550,6 +554,14 @@ def dispatch(args: argparse.Namespace) -> Any:
         return stop_run(store, args.run)
     if command == "pause":
         job = store.resolve_job(args.job)
+        if job["schedule"]["kind"] == "at":
+            raise SchedulerError(
+                "one-shot jobs cannot be paused; use cancel before they start"
+            )
+        if job["status"] != "active":
+            raise SchedulerError(
+                f"only an active recurring job can be paused: {job['status']}"
+            )
         return _redact_job(
             set_job_status(store, job, "paused", unregister=True)
         )
@@ -557,13 +569,19 @@ def dispatch(args: argparse.Namespace) -> Any:
         return _redact_job(resume_job(store, store.resolve_job(args.job)))
     if command == "cancel":
         job = store.resolve_job(args.job)
-        if job["schedule"]["kind"] != "at" or job["status"] != "active":
-            raise SchedulerError("only an active pending one-shot can be cancelled")
-        if int(job["stats"].get("scheduled_started", 0)):
-            raise SchedulerError("one-shot has already started")
-        return _redact_job(
-            set_job_status(store, job, "cancelled", unregister=True)
-        )
+        with store.short_lock(job["id"]):
+            job = store.load_job(job["id"])
+            if job["schedule"]["kind"] != "at" or job["status"] != "active":
+                raise SchedulerError(
+                    "only an active pending one-shot can be cancelled"
+                )
+            if int(job["stats"].get("scheduled_started", 0)):
+                raise SchedulerError("one-shot has already started")
+            job["status"] = "cancelled"
+            job["updated_at"] = iso()
+            store.save_job(job)
+        unregister_job(store, job)
+        return _redact_job(job)
     if command == "update":
         return _redact_job(_handle_update(store, args))
     if command == "prune":

@@ -191,7 +191,7 @@ class Store:
             "occurrence_key": occurrence_key,
             "retry_of": retry_of,
             "status": status,
-            "created_at": iso(),
+            "created_at": now_utc().isoformat(timespec="microseconds"),
             "started_at": None,
             "finished_at": None,
             "attempts": 0,

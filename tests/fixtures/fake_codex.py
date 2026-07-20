@@ -30,8 +30,23 @@ if counter_path:
     path.write_text(str(attempt))
 
 sys.stdin.read()
+if mode == "stale_final":
+    if attempt == 1:
+        final = output_path(sys.argv)
+        if final:
+            final.write_text("stale reply from failed attempt\n")
+        print("temporary transport failure", file=sys.stderr)
+        raise SystemExit(1)
+    print("configuration error: unknown field", file=sys.stderr)
+    raise SystemExit(2)
 if mode == "deterministic":
     print("configuration error: unknown field", file=sys.stderr)
+    raise SystemExit(2)
+if mode == "unknown_configuration":
+    print(
+        "unknown configuration field `future_key` in -c/--config override",
+        file=sys.stderr,
+    )
     raise SystemExit(2)
 if mode == "transient" and attempt < 3:
     print("temporary transport failure", file=sys.stderr)

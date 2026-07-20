@@ -91,8 +91,6 @@ def _branch_component(value: str) -> str:
 
 def _base_commit(workspace: dict[str, Any]) -> str:
     root = Path(workspace["repo_root"])
-    if workspace["base_policy"] == "latest" and workspace.get("source_branch"):
-        return git(root, "rev-parse", f"{workspace['source_branch']}^{{commit}}")
     if workspace["base_policy"] == "latest" and workspace.get("base_ref"):
         return git(root, "rev-parse", f"{workspace['base_ref']}^{{commit}}")
     return workspace["base_commit"]
@@ -151,8 +149,8 @@ def prepare_workspace(
                 "path": str(path),
                 "repo_root": str(repo),
                 "comparison_ref": (
-                    workspace.get("source_branch")
-                    or workspace.get("base_ref")
+                    workspace.get("base_ref")
+                    or workspace.get("source_branch")
                     or workspace["base_commit"]
                 ),
             },
