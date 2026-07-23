@@ -46,6 +46,14 @@ in worktree mode, one persistent branch/worktree generation. Changing prompt,
 schedule, profile, or Codex overrides keeps the fixed session. Changing cwd or
 workspace mode requires `update --reset-session`.
 
+An existing Codex session UUID can seed a `resume_fixed` job with `--session-id`
+in direct mode. The configured cwd should match that session's working
+directory.
+Seeded sessions do not inherit the scheduler's default profile and cannot set a
+profile or Codex override, preventing the job from overriding the session's
+model and reasoning settings. This remains enforced during updates until
+`--reset-session` starts a new session generation.
+
 Worktree base policy defaults to `latest`. The configured local branch or
 explicit `--base-ref` is resolved at run time without fetch or pull. Detached
 HEAD falls back to the captured commit. `snapshot` always uses the captured

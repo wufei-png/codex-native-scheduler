@@ -42,6 +42,13 @@ own valid keys, authentication, approval, sandbox, and organization policies.
 `new_each_run` is the default session mode. Use `resume_fixed` only when the
 task intentionally needs continuity; it forces overlap policy `skip`. Changing
 cwd or workspace mode for a fixed session requires `update --reset-session`.
+To continue an existing Codex session, create a direct `resume_fixed` job with
+`--session-id SESSION_UUID`; its `--cwd` should be the session's working
+directory.
+Seeded sessions do not inherit the scheduler's default profile and reject
+`--profile` and `-c` so the job cannot override the session's model settings.
+Profile and Codex overrides remain locked until `update --reset-session`
+starts a new session generation.
 
 ## Operations
 

@@ -105,6 +105,24 @@ codex-schedule create \
   --prompt-file ./automation/nightly.md
 ```
 
+Send a later prompt to an existing Codex session:
+
+```console
+codex-schedule create \
+  --name follow-up \
+  --cwd "$PWD" \
+  --at 5h \
+  --workspace direct \
+  --session-mode resume_fixed \
+  --session-id 019f8ad6-436d-7d43-b980-2ce65da33755 \
+  --prompt-file ./automation/follow-up.md
+```
+
+Seeded sessions require a UUID and do not inherit the scheduler's default
+profile. They reject `--profile` and `-c` until `update --reset-session` starts
+a new session generation, so the job cannot override the existing session's
+model and reasoning settings.
+
 Inspect and control it:
 
 ```console

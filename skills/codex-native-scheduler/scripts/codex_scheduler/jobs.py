@@ -5,6 +5,7 @@ from __future__ import annotations
 import copy
 import shutil
 import sys
+import uuid
 from pathlib import Path
 from typing import Any
 
@@ -71,6 +72,7 @@ def create_job(
     schedule: dict[str, Any],
     backend_name: str | None,
     session_mode: str,
+    session_id: str | None,
     workspace_mode: str,
     base_policy: str,
     base_ref: str | None,
@@ -92,8 +94,24 @@ def create_job(
     cwd = cwd.expanduser().resolve()
     if not cwd.is_dir():
         raise SchedulerError(f"working directory does not exist: {cwd}")
+    if session_id is not None:
+        try:
+            session_id = str(uuid.UUID(session_id.strip()))
+        except ValueError as exc:
+            raise SchedulerError(
+                "--session-id must be a Codex session UUID"
+            ) from exc
     if session_mode == "resume_fixed" and overlap_policy == "parallel":
         raise SchedulerError("resume_fixed requires --overlap skip")
+    if session_id is not None and session_mode != "resume_fixed":
+        raise SchedulerError("--session-id requires --session-mode resume_fixed")
+    if session_id is not None and workspace_mode != "direct":
+        raise SchedulerError("--session-id requires --workspace direct")
+    if session_id is not None and (profile is not None or codex_config):
+        raise SchedulerError(
+            "--session-id cannot be combined with --profile or "
+            "-c/--codex-config"
+        )
     if workspace_mode == "direct" and (
         base_ref is not None or base_policy != "latest"
     ):
@@ -152,11 +170,16 @@ def create_job(
         "workspace": workspace,
         "session_mode": session_mode,
         "session_generation": 1,
-        "fixed_session_id": None,
+        "fixed_session_id": session_id,
+        "session_seeded": session_id is not None,
         "overlap_policy": overlap_policy,
         "codex": {
             "command": codex_command,
-            "profile": profile if profile is not None else defaults.get("profile"),
+            "profile": (
+                None
+                if session_id is not None
+                else profile if profile is not None else defaults.get("profile")
+            ),
             "config": list(codex_config),
             "strict_config": True,
         },
@@ -191,6 +214,16 @@ def update_job(
 ) -> dict[str, Any]:
     previous = copy.deepcopy(job)
     previous_prompt = store.prompt(job["id"])
+    seeded_session_continues = (
+        bool(job.get("session_seeded"))
+        and not reset_session
+        and changes.get("session_mode", job["session_mode"]) == "resume_fixed"
+    )
+    if seeded_session_continues and "codex" in changes:
+        raise SchedulerError(
+            "profile and Codex overrides cannot be changed while continuing "
+            "a session created with --session-id; use --reset-session first"
+        )
     if "name" in changes:
         store.ensure_unique_name(changes["name"], excluding=job["id"])
     cwd_or_workspace_changed = bool(
@@ -221,6 +254,7 @@ def update_job(
         raise SchedulerError("one-shot jobs cannot have --count or --until")
     if reset_session or session_mode_changed:
         job["fixed_session_id"] = None
+        job["session_seeded"] = False
         job["session_generation"] = int(
             previous.get("session_generation", 1)
         ) + 1

@@ -53,6 +53,12 @@ persistent branch and worktree per job generation. Changing prompt, schedule,
 profile, or `-c` values keeps the session. Changing the working directory or
 workspace mode requires `--reset-session`, which creates a new generation.
 
+An existing Codex session UUID can seed a direct `resume_fixed` job with
+`--session-id`. Seeded sessions do not inherit the scheduler's default profile
+and reject profile or `-c` changes until `--reset-session` starts a new
+generation, preventing the job from overriding the existing session's model
+and reasoning settings.
+
 Worktree base policy defaults to `latest`: the local source branch is resolved
 at run time without fetch or pull. Detached HEAD uses the captured commit.
 `snapshot` always uses the captured commit. `--base-ref` selects the initial

@@ -179,6 +179,10 @@ def parser() -> argparse.ArgumentParser:
         default="new_each_run",
     )
     create.add_argument(
+        "--session-id",
+        help="existing Codex session to use with resume_fixed in direct mode",
+    )
+    create.add_argument(
         "--workspace",
         choices=["direct", "worktree"],
         default="direct",
@@ -326,6 +330,7 @@ def _handle_create(store: Store, args: argparse.Namespace) -> dict[str, Any]:
         schedule=schedule,
         backend_name=args.backend,
         session_mode=args.session_mode,
+        session_id=args.session_id,
         workspace_mode=args.workspace,
         base_policy=args.base_policy,
         base_ref=args.base_ref,
