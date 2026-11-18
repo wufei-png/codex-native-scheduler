@@ -43,13 +43,16 @@ class BackendTests(unittest.TestCase):
             backend = LaunchdBackend(state_root=root / "state", execute=execute)
             launchctl = root / "launchctl"
             launchctl.write_text("fixture")
-            with mock.patch(
-                "codex_scheduler.backends.launchd.shutil.which",
-                return_value=str(launchctl),
-            ), mock.patch(
-                "codex_scheduler.backends.launchd.os.getuid",
-                return_value=501,
-                create=True,
+            with (
+                mock.patch(
+                    "codex_scheduler.backends.launchd.shutil.which",
+                    return_value=str(launchctl),
+                ),
+                mock.patch(
+                    "codex_scheduler.backends.launchd.os.getuid",
+                    return_value=501,
+                    create=True,
+                ),
             ):
                 backend.register(metadata)
             path = backend.plist_path(metadata)
@@ -80,9 +83,7 @@ class BackendTests(unittest.TestCase):
                 calls.append(arguments)
                 return completed(arguments)
 
-            commands = {
-                name: root / name for name in ("systemd-run", "systemctl")
-            }
+            commands = {name: root / name for name in ("systemd-run", "systemctl")}
             for command in commands.values():
                 command.write_text("fixture")
             backend = SystemdBackend(state_root=root / "state", execute=execute)
@@ -125,7 +126,9 @@ class BackendTests(unittest.TestCase):
             namespace = {"t": TASK_NS}
             boundary = tree.find(".//t:StartBoundary", namespace)
             self.assertIsNotNone(boundary)
-            self.assertTrue(backend.task_name(metadata).startswith("\\CodexNativeScheduler-"))
+            self.assertTrue(
+                backend.task_name(metadata).startswith("\\CodexNativeScheduler-")
+            )
 
     def test_windows_recurring_xml_uses_repetition(self) -> None:
         metadata = job(
@@ -140,8 +143,8 @@ class BackendTests(unittest.TestCase):
         xml = ET.tostring(backend.make_xml(metadata).getroot(), encoding="unicode")
         self.assertIn("PT60M", xml)
         self.assertIn("StopAtDurationEnd", xml)
-        trigger = backend.make_xml(metadata).getroot().find(
-            f".//{{{TASK_NS}}}TimeTrigger"
+        trigger = (
+            backend.make_xml(metadata).getroot().find(f".//{{{TASK_NS}}}TimeTrigger")
         )
         self.assertIsNotNone(trigger)
         names = [child.tag.rsplit("}", 1)[-1] for child in trigger]

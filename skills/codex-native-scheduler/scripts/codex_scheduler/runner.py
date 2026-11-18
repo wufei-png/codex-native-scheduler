@@ -212,9 +212,7 @@ def execute_run(
                     text=True,
                     start_new_session=os.name != "nt",
                     creationflags=(
-                        subprocess.CREATE_NEW_PROCESS_GROUP
-                        if os.name == "nt"
-                        else 0
+                        subprocess.CREATE_NEW_PROCESS_GROUP if os.name == "nt" else 0
                     ),
                 )
                 run["codex_pid"] = process.pid
@@ -351,9 +349,9 @@ def _finish_job_state(
         if run["status"] == "succeeded":
             stats["consecutive_failures"] = 0
         elif run["status"] in FAILURE_STATUSES:
-            stats["consecutive_failures"] = int(
-                stats.get("consecutive_failures", 0)
-            ) + 1
+            stats["consecutive_failures"] = (
+                int(stats.get("consecutive_failures", 0)) + 1
+            )
 
         terminal = False
         if job["schedule"]["kind"] == "at" and scheduled:
@@ -427,9 +425,9 @@ def _run_with_overlap(
                     store.save_run(run)
                     return run
                 count = current["limits"].get("count")
-                if count and int(
-                    current["stats"].get("scheduled_started", 0)
-                ) >= int(count):
+                if count and int(current["stats"].get("scheduled_started", 0)) >= int(
+                    count
+                ):
                     run["status"] = "cancelled"
                     run["finished_at"] = iso()
                     run["error"] = "schedule count was reached before the run started"
@@ -463,9 +461,9 @@ def _run_with_overlap(
         ):
             with store.short_lock(job["id"]):
                 current = store.load_job(job["id"])
-                same_generation = int(
-                    current.get("session_generation", 1)
-                ) == int(job.get("session_generation", 1))
+                same_generation = int(current.get("session_generation", 1)) == int(
+                    job.get("session_generation", 1)
+                )
                 if (
                     current.get("session_mode") == "resume_fixed"
                     and same_generation
@@ -537,9 +535,7 @@ def trigger_job(store: Store, reference: str) -> dict[str, Any] | None:
     run["coalesced_occurrences"] = missed
     store.save_run(run)
     session_id = (
-        job.get("fixed_session_id")
-        if job["session_mode"] == "resume_fixed"
-        else None
+        job.get("fixed_session_id") if job["session_mode"] == "resume_fixed" else None
     )
     return _run_with_overlap(
         store,
@@ -592,9 +588,7 @@ def run_now(store: Store, reference: str) -> dict[str, Any]:
         occurrence_key=None,
     )
     session_id = (
-        job.get("fixed_session_id")
-        if job["session_mode"] == "resume_fixed"
-        else None
+        job.get("fixed_session_id") if job["session_mode"] == "resume_fixed" else None
     )
     return _run_with_overlap(
         store,
@@ -660,9 +654,13 @@ def stop_run(store: Store, reference: str) -> dict[str, Any]:
     if codex_pid and process_alive(codex_pid):
         terminate_process_tree(codex_pid)
     runner_pid = run.get("runner_pid")
-    if runner_pid and runner_pid != os.getpid() and process_alive(
-        runner_pid,
-        run.get("runner_start_token"),
+    if (
+        runner_pid
+        and runner_pid != os.getpid()
+        and process_alive(
+            runner_pid,
+            run.get("runner_start_token"),
+        )
     ):
         deadline = time.monotonic() + 10
         while process_alive(runner_pid) and time.monotonic() < deadline:

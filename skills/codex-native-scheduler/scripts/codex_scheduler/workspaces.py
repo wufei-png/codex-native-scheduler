@@ -250,9 +250,7 @@ def remove_safe_worktrees(
 ) -> list[str]:
     risks = worktree_risks(job, state_root=state_root)
     if risks:
-        detail = "; ".join(
-            f"{risk['path']} ({risk['reason']})" for risk in risks
-        )
+        detail = "; ".join(f"{risk['path']} ({risk['reason']})" for risk in risks)
         raise SchedulerError(
             "refusing to delete worktrees with user work; preserve or remove "
             f"them explicitly first: {detail}"

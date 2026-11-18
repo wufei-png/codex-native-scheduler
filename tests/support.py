@@ -34,8 +34,7 @@ def job(
         "created_at": now,
         "updated_at": now,
         "backend": "systemd",
-        "schedule": schedule
-        or {"kind": "daily", "hour": 12, "minute": 0},
+        "schedule": schedule or {"kind": "daily", "hour": 12, "minute": 0},
         "limits": {"count": None, "until": None},
         "stats": {
             "scheduled_started": 0,

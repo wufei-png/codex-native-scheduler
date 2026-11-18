@@ -28,4 +28,3 @@ def backend_for(
     if backend_class is None:
         raise BackendError(f"unsupported scheduler backend: {selected}")
     return backend_class(state_root=state_root, execute=execute)
-

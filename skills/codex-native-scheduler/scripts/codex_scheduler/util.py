@@ -86,9 +86,7 @@ def parse_duration(value: str, *, minimum_seconds: int = 60) -> int:
         )
     rounded = int(seconds)
     if rounded < minimum_seconds:
-        raise SchedulerError(
-            f"duration must be at least {minimum_seconds} seconds"
-        )
+        raise SchedulerError(f"duration must be at least {minimum_seconds} seconds")
     if rounded % 60:
         raise SchedulerError("schedules use minute precision")
     return rounded

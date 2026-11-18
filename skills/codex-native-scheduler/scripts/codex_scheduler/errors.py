@@ -9,4 +9,3 @@ class SchedulerError(RuntimeError):
 
 class BackendError(SchedulerError):
     """A native scheduler backend operation failed."""
-

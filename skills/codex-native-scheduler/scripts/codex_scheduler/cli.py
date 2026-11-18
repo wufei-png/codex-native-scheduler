@@ -129,9 +129,7 @@ def _retention(args: argparse.Namespace) -> dict[str, Any]:
 def _redact_job(job: dict[str, Any]) -> dict[str, Any]:
     result = copy.deepcopy(job)
     if "environment" in result:
-        result["environment"] = {
-            key: "<redacted>" for key in result["environment"]
-        }
+        result["environment"] = dict.fromkeys(result["environment"], "<redacted>")
     return result
 
 
@@ -497,19 +495,13 @@ def _doctor(store: Store, requested: str | None) -> dict[str, Any]:
 
 
 def _prune(store: Store, reference: str | None, dry_run: bool) -> dict[str, Any]:
-    jobs = (
-        [store.resolve_job(reference)]
-        if reference
-        else store.list_jobs()
-    )
+    jobs = [store.resolve_job(reference)] if reference else store.list_jobs()
     candidates = []
     for job in jobs:
         with store.short_lock(job["id"]):
             current = store.load_job(job["id"])
             for run in store.retention_candidates(current):
-                candidates.append(
-                    {"job_id": current["id"], "run_id": run["id"]}
-                )
+                candidates.append({"job_id": current["id"], "run_id": run["id"]})
                 if not dry_run:
                     store.prune_run(run)
     return {"dry_run": dry_run, "runs": candidates}
@@ -567,9 +559,7 @@ def dispatch(args: argparse.Namespace) -> Any:
             raise SchedulerError(
                 f"only an active recurring job can be paused: {job['status']}"
             )
-        return _redact_job(
-            set_job_status(store, job, "paused", unregister=True)
-        )
+        return _redact_job(set_job_status(store, job, "paused", unregister=True))
     if command == "resume":
         return _redact_job(resume_job(store, store.resolve_job(args.job)))
     if command == "cancel":
@@ -577,9 +567,7 @@ def dispatch(args: argparse.Namespace) -> Any:
         with store.short_lock(job["id"]):
             job = store.load_job(job["id"])
             if job["schedule"]["kind"] != "at" or job["status"] != "active":
-                raise SchedulerError(
-                    "only an active pending one-shot can be cancelled"
-                )
+                raise SchedulerError("only an active pending one-shot can be cancelled")
             if int(job["stats"].get("scheduled_started", 0)):
                 raise SchedulerError("one-shot has already started")
             job["status"] = "cancelled"
@@ -618,14 +606,11 @@ def dispatch(args: argparse.Namespace) -> Any:
         if not args.yes:
             raise SchedulerError("purge is permanent; repeat with --yes")
         non_decommissioned = [
-            job["id"]
-            for job in store.list_jobs()
-            if job["status"] != "decommissioned"
+            job["id"] for job in store.list_jobs() if job["status"] != "decommissioned"
         ]
         if non_decommissioned:
             raise SchedulerError(
-                "decommission all jobs before purge: "
-                + ", ".join(non_decommissioned)
+                "decommission all jobs before purge: " + ", ".join(non_decommissioned)
             )
         active = [
             run["id"]
@@ -633,16 +618,12 @@ def dispatch(args: argparse.Namespace) -> Any:
             for run in active_runs(store, job["id"])
         ]
         if active:
-            raise SchedulerError(
-                "stop active runs before purge: " + ", ".join(active)
-            )
+            raise SchedulerError("stop active runs before purge: " + ", ".join(active))
         for job in store.list_jobs():
             remove_safe_worktrees(job, state_root=store.root)
         root = store.root
         if root.name != "codex-native-scheduler":
-            raise SchedulerError(
-                "refusing to purge a nonstandard state directory"
-            )
+            raise SchedulerError("refusing to purge a nonstandard state directory")
         shutil.rmtree(root)
         return {"purged": str(root)}
     if command == "doctor":

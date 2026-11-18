@@ -119,9 +119,7 @@ class JobCreationTests(unittest.TestCase):
                 session_id=persisted["fixed_session_id"],
             )
             resume_index = arguments.index("resume")
-            session_index = arguments.index(
-                "019f8ad6-436d-7d43-b980-2ce65da33755"
-            )
+            session_index = arguments.index("019f8ad6-436d-7d43-b980-2ce65da33755")
             self.assertLess(resume_index, session_index)
             self.assertEqual(arguments[-1], "-")
             self.assertNotIn("-p", arguments)
@@ -209,8 +207,7 @@ class JobCreationTests(unittest.TestCase):
                 prompt="Review the changes.",
                 name="test",
                 cwd=root,
-                schedule=schedule
-                or {"kind": "at", "at": "2999-01-01T00:00:00+00:00"},
+                schedule=schedule or {"kind": "at", "at": "2999-01-01T00:00:00+00:00"},
                 backend_name=None,
                 session_mode=session_mode,
                 session_id=session_id,

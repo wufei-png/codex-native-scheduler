@@ -146,4 +146,3 @@ class LaunchdBackend(Backend):
                 else result.stderr.strip() or result.stdout.strip()
             ),
         }
-

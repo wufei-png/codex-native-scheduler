@@ -44,9 +44,7 @@ class WorkspaceTests(unittest.TestCase):
             (repository / "file.txt").write_text("dirty\n")
             with self.assertRaises(SchedulerError):
                 ensure_direct_workspace(repository, allow_dirty=False)
-            self.assertTrue(
-                ensure_direct_workspace(repository, allow_dirty=True)
-            )
+            self.assertTrue(ensure_direct_workspace(repository, allow_dirty=True))
 
     def test_direct_workspace_is_rechecked_at_run_time(self) -> None:
         with tempfile.TemporaryDirectory() as temporary:

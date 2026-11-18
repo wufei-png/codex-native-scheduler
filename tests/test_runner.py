@@ -149,9 +149,9 @@ class RunnerTests(unittest.TestCase):
             self.assertEqual(retried["retry_of"], original["id"])
             self.assertEqual(retried["job_revision"], 1)
             retried_dir = store.run_dir(metadata["id"], retried["id"])
-            command = read_json(
-                retried_dir / "attempts" / "1" / "command.json"
-            )["arguments"]
+            command = read_json(retried_dir / "attempts" / "1" / "command.json")[
+                "arguments"
+            ]
             self.assertIn("resume", command)
             self.assertIn("session-test", command)
             self.assertLess(command.index("-p"), command.index("resume"))
@@ -404,9 +404,7 @@ class RunnerTests(unittest.TestCase):
                 resume_session=None,
             )
             self.assertEqual(result["status"], "succeeded")
-            self.assertIsNone(
-                store.load_job(metadata["id"])["fixed_session_id"]
-            )
+            self.assertIsNone(store.load_job(metadata["id"])["fixed_session_id"])
 
     def test_bounded_retention_is_applied_after_each_run(self) -> None:
         with tempfile.TemporaryDirectory() as temporary:
@@ -430,9 +428,7 @@ class RunnerTests(unittest.TestCase):
             store = store_with_job(root, metadata)
             first = run_now(store, metadata["id"])
             second = run_now(store, metadata["id"])
-            runs = {
-                run["id"]: run for run in store.list_runs(metadata["id"])
-            }
+            runs = {run["id"]: run for run in store.list_runs(metadata["id"])}
             self.assertTrue(runs[first["id"]]["tombstone"])
             self.assertFalse(runs[second["id"]].get("tombstone", False))
 

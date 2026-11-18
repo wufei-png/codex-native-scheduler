@@ -74,9 +74,7 @@ class ScheduleTests(unittest.TestCase):
             30,
             tzinfo=dt.timezone(dt.timedelta(hours=-4)),
         )
-        standard = daylight.replace(
-            tzinfo=dt.timezone(dt.timedelta(hours=-5))
-        )
+        standard = daylight.replace(tzinfo=dt.timezone(dt.timedelta(hours=-5)))
         self.assertEqual(
             occurrence_key(schedule, daylight),
             occurrence_key(schedule, standard),
@@ -88,9 +86,7 @@ class ScheduleTests(unittest.TestCase):
         try:
             with mock.patch.dict(os.environ, {"TZ": "America/New_York"}):
                 time.tzset()
-                self.assertIsNone(
-                    local_wall_time(dt.date(2026, 3, 8), 2, 30)
-                )
+                self.assertIsNone(local_wall_time(dt.date(2026, 3, 8), 2, 30))
                 schedule = {"kind": "daily", "hour": 2, "minute": 30}
                 now = dt.datetime.fromtimestamp(
                     time.mktime((2026, 3, 8, 12, 0, 0, 0, 0, -1))

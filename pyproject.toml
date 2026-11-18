@@ -11,4 +11,5 @@ target-version = "py311"
 
 [tool.ruff.lint]
 select = ["E", "F", "I", "UP"]
+extend-select = ["B", "C4", "ASYNC", "DTZ", "S501", "S502", "S506", "S608"]
 

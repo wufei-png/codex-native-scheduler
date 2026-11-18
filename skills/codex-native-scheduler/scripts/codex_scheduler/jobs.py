@@ -98,9 +98,7 @@ def create_job(
         try:
             session_id = str(uuid.UUID(session_id.strip()))
         except ValueError as exc:
-            raise SchedulerError(
-                "--session-id must be a Codex session UUID"
-            ) from exc
+            raise SchedulerError("--session-id must be a Codex session UUID") from exc
     if session_mode == "resume_fixed" and overlap_policy == "parallel":
         raise SchedulerError("resume_fixed requires --overlap skip")
     if session_id is not None and session_mode != "resume_fixed":
@@ -109,12 +107,9 @@ def create_job(
         raise SchedulerError("--session-id requires --workspace direct")
     if session_id is not None and (profile is not None or codex_config):
         raise SchedulerError(
-            "--session-id cannot be combined with --profile or "
-            "-c/--codex-config"
+            "--session-id cannot be combined with --profile or -c/--codex-config"
         )
-    if workspace_mode == "direct" and (
-        base_ref is not None or base_policy != "latest"
-    ):
+    if workspace_mode == "direct" and (base_ref is not None or base_policy != "latest"):
         raise SchedulerError("--base-policy and --base-ref require worktree mode")
     if workspace_mode == "worktree" and allow_dirty:
         raise SchedulerError("--allow-dirty applies only to direct workspace mode")
@@ -139,11 +134,7 @@ def create_job(
     deadline_value = parse_iso(until) if until else None
     if deadline_value and deadline_value.astimezone() <= now_local():
         raise SchedulerError("--until must be in the future")
-    deadline = (
-        deadline_value.isoformat(timespec="seconds")
-        if deadline_value
-        else None
-    )
+    deadline = deadline_value.isoformat(timespec="seconds") if deadline_value else None
     if count is not None and count < 1:
         raise SchedulerError("--count must be at least 1")
     if schedule["kind"] == "at" and (count is not None or deadline is not None):
@@ -178,7 +169,9 @@ def create_job(
             "profile": (
                 None
                 if session_id is not None
-                else profile if profile is not None else defaults.get("profile")
+                else profile
+                if profile is not None
+                else defaults.get("profile")
             ),
             "config": list(codex_config),
             "strict_config": True,
@@ -226,17 +219,14 @@ def update_job(
         )
     if "name" in changes:
         store.ensure_unique_name(changes["name"], excluding=job["id"])
-    cwd_or_workspace_changed = bool(
-        {"cwd", "workspace"} & changes.keys()
-    )
+    cwd_or_workspace_changed = bool({"cwd", "workspace"} & changes.keys())
     if (
         job["session_mode"] == "resume_fixed"
         and cwd_or_workspace_changed
         and not reset_session
     ):
         raise SchedulerError(
-            "changing cwd or workspace mode for resume_fixed requires "
-            "--reset-session"
+            "changing cwd or workspace mode for resume_fixed requires --reset-session"
         )
     for key, value in changes.items():
         job[key] = value
@@ -255,9 +245,7 @@ def update_job(
     if reset_session or session_mode_changed:
         job["fixed_session_id"] = None
         job["session_seeded"] = False
-        job["session_generation"] = int(
-            previous.get("session_generation", 1)
-        ) + 1
+        job["session_generation"] = int(previous.get("session_generation", 1)) + 1
     if reset_session:
         workspace = job.get("workspace", {})
         if workspace.get("mode") == "worktree":

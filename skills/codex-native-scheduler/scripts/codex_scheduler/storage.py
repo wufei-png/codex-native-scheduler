@@ -138,8 +138,7 @@ class Store:
         unique = {job["id"]: job for job in matches}
         if len(unique) > 1:
             raise SchedulerError(
-                f"job reference is ambiguous: {reference} "
-                f"({', '.join(sorted(unique))})"
+                f"job reference is ambiguous: {reference} ({', '.join(sorted(unique))})"
             )
         return next(iter(unique.values()))
 
@@ -248,9 +247,7 @@ class Store:
             reverse=True,
         )
 
-    def claim_occurrence(
-        self, job_id: str, key: str, payload: dict[str, Any]
-    ) -> bool:
+    def claim_occurrence(self, job_id: str, key: str, payload: dict[str, Any]) -> bool:
         claims = self.job_dir(job_id) / "claims"
         secure_directory(claims)
         safe_key = key.replace(":", "").replace("+", "p").replace("/", "_")
@@ -347,7 +344,9 @@ class Store:
                         shutil.rmtree(lock, ignore_errors=True)
                         continue
                 if time.monotonic() >= deadline:
-                    raise SchedulerError(f"timed out acquiring job {name} lock")
+                    raise SchedulerError(
+                        f"timed out acquiring job {name} lock"
+                    ) from None
                 time.sleep(0.05)
         atomic_write_json(
             lock / "owner.json",
@@ -405,9 +404,7 @@ class Store:
         current = now or now_utc()
         retain_runs = retention.get("retain_runs")
         retention_days = retention.get("days")
-        kept_by_count = {
-            run["id"] for run in runs[: int(retain_runs or 0)]
-        }
+        kept_by_count = {run["id"] for run in runs[: int(retain_runs or 0)]}
         candidates = []
         for run in runs:
             if run["id"] in kept_by_count:
