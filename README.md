@@ -1,5 +1,11 @@
 # Codex Native Scheduler
 
+Maintenance and installation now live in [`wufei-png/skills`](https://github.com/wufei-png/skills).
+Use the [install and upgrade guide](https://github.com/wufei-png/skills/blob/main/skills/productivity/codex-native-scheduler/references/setup.md)
+to keep your installed CLI path and existing job state. The
+[`v0.1.0` release](https://github.com/wufei-png/codex-native-scheduler/releases/tag/v0.1.0)
+remains available for pinned installs.
+
 Run unattended Codex CLI jobs through the scheduler already built into the
 operating system:
 

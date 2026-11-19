@@ -54,18 +54,25 @@ case "${target##*/}" in
     ;;
 esac
 
+temporary="$(mktemp -d "${TMPDIR:-/tmp}/codex-native-scheduler.XXXXXX")"
+cleanup() {
+  rm -rf "$temporary"
+}
+trap cleanup EXIT HUP INT TERM
+
+if [ "$ref" = "main" ]; then
+  installer="$temporary/install-codex-native-scheduler.sh"
+  curl -fsSL https://raw.githubusercontent.com/wufei-png/skills/main/scripts/install-codex-native-scheduler.sh -o "$installer"
+  sh "$installer" --existing "$existing" --target "$target"
+  exit
+fi
+
 if ! command -v python3 >/dev/null 2>&1 ||
   ! python3 -c 'import sys; raise SystemExit(sys.version_info < (3, 11))'
 then
   echo "Python 3.11 or newer is required" >&2
   exit 1
 fi
-
-temporary="$(mktemp -d "${TMPDIR:-/tmp}/codex-native-scheduler.XXXXXX")"
-cleanup() {
-  rm -rf "$temporary"
-}
-trap cleanup EXIT HUP INT TERM
 
 archive="$temporary/source.tar.gz"
 url="https://github.com/${repository}/archive/${ref}.tar.gz"
